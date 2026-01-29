@@ -85,7 +85,8 @@ func (g *GoToolchain) goTool(command string, args ...string) *exec.Cmd {
 	if g.Root == "" {
 		g.Root = runtime.GOROOT()
 	}
-	tool := exec.Command(filepath.Join(g.Root, "bin", "go"), command)
+
+	tool := exec.Command(filepath.Join("/go", "bin", "orchestrion"), "go", command)
 	tool.Args = append(tool.Args, args...)
 	tool.Env = append(tool.Env, "GOROOT="+g.Root)
 
@@ -100,6 +101,10 @@ func (g *GoToolchain) goTool(command string, args ...string) *exec.Cmd {
 		}
 		tool.Env = append(tool.Env, e)
 	}
+
+	println(tool)
+	println(tool.Path)
+	println(tool.Args)
 	return tool
 }
 
