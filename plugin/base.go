@@ -261,6 +261,11 @@ func (*logDelegate) IsError() bool {
 	return true
 }
 
+func (*logDelegate) GetLevel() hclog.Level {
+	// no need to implement that as go-plugin doesn't use this method.
+	return hclog.NoLevel
+}
+
 func (ld *logDelegate) With(args ...interface{}) hclog.Logger {
 	return &logDelegate{ld.eLogger.New(args...)}
 }
