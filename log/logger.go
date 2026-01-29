@@ -1,12 +1,16 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-stack/stack"
 	"github.com/hashicorp/go-hclog"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const timeKey = "t"
@@ -129,8 +133,9 @@ type Logger interface {
 }
 
 type logger struct {
-	ctx []interface{}
-	h   *swapHandler
+	ctx        []interface{}
+	logContext context.Context
+	h          *swapHandler
 }
 
 func (l *logger) GetLevel() hclog.Level {
@@ -139,6 +144,17 @@ func (l *logger) GetLevel() hclog.Level {
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+	span, ok := tracer.SpanFromContext(l.logContext)
+	if ok && span.Context().TraceID() != 0 {
+		var traceID uint64
+		traceID = span.Context().TraceID()
+
+		spanID := strconv.FormatUint(span.Context().SpanID(), 10)
+
+		l.ctx = append(l.ctx, ext.LogKeyTraceID, strconv.FormatUint(traceID, 10))
+		l.ctx = append(l.ctx, ext.LogKeySpanID, spanID)
+	}
+
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
@@ -155,7 +171,7 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 }
 
 func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler)}
+	child := &logger{newContext(l.ctx, ctx), context.WithoutCancel(context.Background()), new(swapHandler)}
 	child.SetHandler(l.h)
 	return child
 }

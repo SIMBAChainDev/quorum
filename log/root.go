@@ -1,11 +1,12 @@
 package log
 
 import (
+	"context"
 	"os"
 )
 
 var (
-	root          = &logger{[]interface{}{}, new(swapHandler)}
+	root          = &logger{[]interface{}{}, context.WithoutCancel(context.Background()), new(swapHandler)}
 	StdoutHandler = StreamHandler(os.Stdout, LogfmtFormat())
 	StderrHandler = StreamHandler(os.Stderr, LogfmtFormat())
 )
