@@ -135,6 +135,7 @@ func (c *core) sendEvent(ev interface{}) {
 	c.backend.EventMux().Post(ev)
 }
 
+//dd:span
 func (c *core) handleMsg(payload []byte) error {
 	logger := c.logger.New()
 
@@ -155,6 +156,7 @@ func (c *core) handleMsg(payload []byte) error {
 	return c.handleCheckedMsg(msg, src)
 }
 
+//dd:span
 func (c *core) handleCheckedMsg(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("address", c.address, "from", src)
 

@@ -22,6 +22,7 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
+//dd:span
 func (c *core) handleRequest(request *istanbul.Request) error {
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
 	if err := c.checkRequestMsg(request); err != nil {
@@ -45,6 +46,8 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the sequence of proposal is larger than current sequence
 // return errOldMessage if the sequence of proposal is smaller than current sequence
+//
+//dd:span
 func (c *core) checkRequestMsg(request *istanbul.Request) error {
 	if request == nil || request.Proposal == nil {
 		return istanbulcommon.ErrInvalidMessage
@@ -59,6 +62,7 @@ func (c *core) checkRequestMsg(request *istanbul.Request) error {
 	}
 }
 
+//dd:span
 func (c *core) storeRequestMsg(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 
@@ -70,6 +74,7 @@ func (c *core) storeRequestMsg(request *istanbul.Request) {
 	c.pendingRequests.Push(request, float32(-request.Proposal.Number().Int64()))
 }
 
+//dd:span
 func (c *core) processPendingRequests() {
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()

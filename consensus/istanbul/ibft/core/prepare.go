@@ -24,6 +24,7 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
+//dd:span
 func (c *core) sendPrepare() {
 	logger := c.logger.New("state", c.state)
 
@@ -39,6 +40,7 @@ func (c *core) sendPrepare() {
 	})
 }
 
+//dd:span
 func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode PREPARE message
 	var prepare *istanbul.Subject
@@ -72,6 +74,8 @@ func (c *core) handlePrepare(msg *ibfttypes.Message, src istanbul.Validator) err
 }
 
 // verifyPrepare verifies if the received PREPARE message is equivalent to our subject
+//
+//dd:span
 func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -84,6 +88,7 @@ func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) 
 	return nil
 }
 
+//dd:span
 func (c *core) acceptPrepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 

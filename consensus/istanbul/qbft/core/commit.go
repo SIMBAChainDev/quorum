@@ -85,6 +85,8 @@ func (c *core) broadcastCommit() {
 // - validates COMMIT message digest matches the current block proposal
 // - accumulates valid COMMIT messages until reaching quorum
 // - when quorum of COMMIT messages is reached then update state and commits
+//
+//dd:span
 func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 	logger := c.currentLogger(true, commit)
 
@@ -119,6 +121,8 @@ func (c *core) handleCommitMsg(commit *qbfttypes.Commit) error {
 // - computes committedSeals from each received commit messages
 // - then commits block proposal to database with committed seals
 // - broadcast round change
+//
+//dd:span
 func (c *core) commitQBFT() {
 	c.setState(StateCommitted)
 

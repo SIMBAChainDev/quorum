@@ -70,6 +70,7 @@ type callProc struct {
 	notifiers []*Notifier
 }
 
+//dd:span
 func newHandler(connCtx context.Context, conn jsonWriter, idgen func() ID, reg *serviceRegistry) *handler {
 	rootCtx, cancelRoot := context.WithCancel(connCtx)
 	h := &handler{
@@ -92,6 +93,8 @@ func newHandler(connCtx context.Context, conn jsonWriter, idgen func() ID, reg *
 }
 
 // handleBatch executes all messages in a batch and returns the responses.
+//
+//dd:span
 func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 	// Emit error response for empty batches:
 	if len(msgs) == 0 {
@@ -130,6 +133,8 @@ func (h *handler) handleBatch(msgs []*jsonrpcMessage) {
 }
 
 // handleMsg handles a single message.
+//
+//dd:span
 func (h *handler) handleMsg(msg *jsonrpcMessage) {
 	if ok := h.handleImmediate(msg); ok {
 		return
@@ -228,6 +233,8 @@ func (h *handler) startCallProc(fn func(*callProc)) {
 
 // handleImmediate executes non-call messages. It returns false if the message is a
 // call or requires a reply.
+//
+//dd:span
 func (h *handler) handleImmediate(msg *jsonrpcMessage) bool {
 	start := time.Now()
 	switch {

@@ -118,6 +118,7 @@ func (c *core) checkRequestMsg(request *Request) error {
 	}
 }
 
+//dd:span
 func (c *core) storeRequestMsg(request *Request) {
 	logger := c.currentLogger(true, nil).New("proposal.number", request.Proposal.Number(), "proposal.hash", request.Proposal.Hash())
 
@@ -131,6 +132,8 @@ func (c *core) storeRequestMsg(request *Request) {
 
 // processPendingRequests is called each time QBFT state is re-initialized
 // it lookup over pending requests and re-input its so they can be treated
+//
+//dd:span
 func (c *core) processPendingRequests() {
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()

@@ -165,6 +165,7 @@ func (c *core) sendEvent(ev interface{}) {
 	c.backend.EventMux().Post(ev)
 }
 
+//dd:span
 func (c *core) handleEncodedMsg(code uint64, data []byte) error {
 	logger := c.logger.New("code", code, "data", data)
 

@@ -219,6 +219,7 @@ func (p *Peer) Inbound() bool {
 	return p.rw.is(inboundConn)
 }
 
+//dd:span
 func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
 	p := &Peer{

@@ -131,6 +131,8 @@ func (c *core) addToBacklog(msg qbfttypes.QBFTMessage) {
 // the event channel so main handler loop can handle it
 
 // It is called on every state change
+//
+//dd:span
 func (c *core) processBacklog() {
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()

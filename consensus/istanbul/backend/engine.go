@@ -487,6 +487,7 @@ func (sb *Backend) SealHash(header *types.Header) common.Hash {
 	return sb.EngineForBlockNumber(header.Number).SealHash(header)
 }
 
+//dd:span
 func (sb *Backend) snapApply(snap *Snapshot, headers []*types.Header) (*Snapshot, error) {
 	// Allow passing in no headers for cleaner code
 	if len(headers) == 0 {
@@ -516,6 +517,7 @@ func (sb *Backend) snapApply(snap *Snapshot, headers []*types.Header) (*Snapshot
 	return snapCpy, nil
 }
 
+//dd:span
 func (sb *Backend) snapApplyHeader(snap *Snapshot, header *types.Header) error {
 	logger := sb.snapLogger(snap).New("header.number", header.Number.Uint64(), "header.hash", header.Hash().String())
 

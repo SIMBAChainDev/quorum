@@ -77,6 +77,7 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 	return nil
 }
 
+//dd:span
 func (c *core) storeBacklog(msg *ibfttypes.Message, src istanbul.Validator) {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -113,6 +114,7 @@ func (c *core) storeBacklog(msg *ibfttypes.Message, src istanbul.Validator) {
 	c.backlogs[src.Address()] = backlog
 }
 
+//dd:span
 func (c *core) processBacklog() {
 	c.backlogsMu.Lock()
 	defer c.backlogsMu.Unlock()

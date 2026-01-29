@@ -170,8 +170,8 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	})
 }
 
-func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), context.WithoutCancel(context.Background()), new(swapHandler)}
+func (l *logger) New(ctxparams ...interface{}) Logger {
+	child := &logger{newContext(l.ctx, ctxparams), context.WithoutCancel(context.Background()), new(swapHandler)}
 	child.SetHandler(l.h)
 	return child
 }

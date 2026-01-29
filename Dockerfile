@@ -4,14 +4,14 @@ ARG VERSION=""
 ARG BUILDNUM=""
 
 # Build Geth in a stock Go builder container
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache gcc musl-dev linux-headers git
 
 # Get dependencies - will also be cached if we won't change go.mod/go.sum
 COPY go.mod /go-ethereum/
 COPY go.sum /go-ethereum/
-RUN go install github.com/DataDog/orchestrion@v1.0.4
+RUN go install github.com/DataDog/orchestrion@v1.7.0
 RUN cd /go-ethereum && orchestrion go mod download
 
 ADD . /go-ethereum
