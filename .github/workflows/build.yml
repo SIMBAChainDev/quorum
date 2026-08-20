@@ -87,7 +87,7 @@ jobs:
           tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
@@ -147,9 +147,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: docker-image
+          path: docker-image
       - name: 'Load Docker image'
         id: setup
         run: |
@@ -259,9 +260,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: docker-image
+          path: docker-image
       - name: 'Load Docker image'
         id: setup
         run: |
@@ -300,9 +302,10 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v2
       - name: 'Download workflow artifact - Docker image'
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: docker-image
+          path: docker-image
       - name: 'Load Docker image'
         id: setup
         run: |
