@@ -144,22 +144,26 @@ func (l *logger) GetLevel() hclog.Level {
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+	baseCtx := l.ctx
+
 	span, ok := tracer.SpanFromContext(l.logContext)
 	if ok && span.Context().TraceID() != 0 {
-		var traceID uint64
-		traceID = span.Context().TraceID()
-
+		traceID := span.Context().TraceID()
 		spanID := strconv.FormatUint(span.Context().SpanID(), 10)
 
-		l.ctx = append(l.ctx, ext.LogKeyTraceID, strconv.FormatUint(traceID, 10))
-		l.ctx = append(l.ctx, ext.LogKeySpanID, spanID)
+		// Build a per-record copy so the trace/span tags for this single log
+		// line don't get appended onto l.ctx, which is the logger's persistent
+		// base context and lives for the logger's entire lifetime. Mutating it
+		// here would make every subsequent log call from this logger carry an
+		// ever-growing accumulation of every trace/span pair ever logged.
+		baseCtx = append(append([]interface{}{}, l.ctx...), ext.LogKeyTraceID, strconv.FormatUint(traceID, 10), ext.LogKeySpanID, spanID)
 	}
 
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
 		Msg:  msg,
-		Ctx:  newContext(l.ctx, ctx),
+		Ctx:  newContext(baseCtx, ctx),
 		Call: stack.Caller(skip),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
