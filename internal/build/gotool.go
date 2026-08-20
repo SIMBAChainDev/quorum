@@ -86,7 +86,14 @@ func (g *GoToolchain) goTool(command string, args ...string) *exec.Cmd {
 		g.Root = runtime.GOROOT()
 	}
 
-	tool := exec.Command(filepath.Join("/go", "bin", "orchestrion"), "go", command)
+	// Instrument the build with orchestrion when it is available on PATH;
+	// otherwise fall back to the plain go tool from GOROOT.
+	var tool *exec.Cmd
+	if orchestrion, err := exec.LookPath("orchestrion"); err == nil {
+		tool = exec.Command(orchestrion, "go", command)
+	} else {
+		tool = exec.Command(filepath.Join(g.Root, "bin", "go"), command)
+	}
 	tool.Args = append(tool.Args, args...)
 	tool.Env = append(tool.Env, "GOROOT="+g.Root)
 
@@ -101,10 +108,6 @@ func (g *GoToolchain) goTool(command string, args ...string) *exec.Cmd {
 		}
 		tool.Env = append(tool.Env, e)
 	}
-
-	println(tool)
-	println(tool.Path)
-	println(tool.Args)
 	return tool
 }
 

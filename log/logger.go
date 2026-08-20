@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-stack/stack"
-	"github.com/hashicorp/go-hclog"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
@@ -115,8 +114,6 @@ type Logger interface {
 	// New returns a new Logger that has this logger's context plus the given context
 	New(ctx ...interface{}) Logger
 
-	GetLevel() hclog.Level
-
 	// GetHandler gets the handler associated with the logger.
 	GetHandler() Handler
 
@@ -136,11 +133,6 @@ type logger struct {
 	ctx        []interface{}
 	logContext context.Context
 	h          *swapHandler
-}
-
-func (l *logger) GetLevel() hclog.Level {
-	// no need to implement that as go-plugin doesn't use this method.
-	return hclog.NoLevel
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
