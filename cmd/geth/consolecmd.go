@@ -93,6 +93,7 @@ func readTLSClientConfig(endpoint string, ctx *cli.Context) (*tls.Config, bool, 
 	hasCustomTls := false
 	insecureSkipVerify := ctx.Bool(utils.RPCClientTLSInsecureSkipVerify.Name)
 	tlsConfig := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
 		InsecureSkipVerify: insecureSkipVerify,
 	}
 	var certFile, caFile string

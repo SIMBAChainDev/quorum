@@ -48,6 +48,7 @@ func newTLSConfig(cfg Config) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
+		MinVersion:           tls.VersionTLS12,
 		RootCAs:              rootCAPool,
 		InsecureSkipVerify:   cfg.TlsInsecureSkipVerify,
 		GetClientCertificate: getClientCertFunc,

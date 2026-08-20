@@ -22,11 +22,9 @@ type TLSConfig struct {
 }
 
 func NewTLSConfig(config *TLSConfig) (*tls.Config, error) {
-	if config.InsecureSkipVerify {
-		return &tls.Config{
-			InsecureSkipVerify: true,
-		}, nil
-	}
+	// Note: InsecureSkipVerify is applied on the fully-built config below so
+	// that setting it does not silently discard the CA pool, client certs,
+	// ClientAuth and cipher-suite configuration.
 	var (
 		CA_Pool *x509.CertPool
 		err     error
@@ -91,11 +89,13 @@ func NewTLSConfig(config *TLSConfig) (*tls.Config, error) {
 	}
 
 	return &tls.Config{
-		RootCAs:      CA_Pool,
-		Certificates: certificates,
-		ServerName:   config.ServerName,
-		ClientCAs:    ClientCA_Pool,
-		ClientAuth:   ClientAuth,
-		CipherSuites: CipherSuites,
+		MinVersion:         tls.VersionTLS12,
+		RootCAs:            CA_Pool,
+		Certificates:       certificates,
+		ServerName:         config.ServerName,
+		ClientCAs:          ClientCA_Pool,
+		ClientAuth:         ClientAuth,
+		CipherSuites:       CipherSuites,
+		InsecureSkipVerify: config.InsecureSkipVerify,
 	}, nil
 }
