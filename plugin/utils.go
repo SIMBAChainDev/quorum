@@ -66,11 +66,18 @@ func unzip(src string, dest string) error {
 		return err
 	}
 	targetDir := dest
+	cleanTargetDir := filepath.Clean(targetDir)
 	for _, file := range zipReader.Reader.File {
 		extractedFilePath := filepath.Join(
 			targetDir,
 			file.Name,
 		)
+		// Guard against zip-slip: a crafted archive entry (e.g. "../../etc/x")
+		// must not write outside the target directory.
+		if extractedFilePath != cleanTargetDir &&
+			!strings.HasPrefix(extractedFilePath, cleanTargetDir+string(os.PathSeparator)) {
+			return fmt.Errorf("zip entry %q escapes target directory", file.Name)
+		}
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(extractedFilePath, file.Mode()); err != nil {
 				return err

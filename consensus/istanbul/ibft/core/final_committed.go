@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+//dd:span
 func (c *core) handleFinalCommitted() error {
 	logger := c.logger.New("state", c.state)
 	logger.Trace("Received a final committed proposal")

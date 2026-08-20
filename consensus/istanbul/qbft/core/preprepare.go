@@ -33,6 +33,8 @@ import (
 // - creates and sign PRE-PREPARE message with block proposed on `miner.Seal()`
 // - extends PRE-PREPARE message with ROUND-CHANGE and PREPARE justification
 // - broadcast PRE-PREPARE message to other validators
+//
+//dd:span
 func (c *core) sendPreprepareMsg(request *Request) {
 	// c.current and c.valSet (checked in IsProposer()) is updated asynchronously in startNewRound(),
 	// need to prevent race condition with mutex
@@ -105,6 +107,8 @@ func (c *core) sendPreprepareMsg(request *Request) {
 // - validates PRE-PREPARE message was created by the right proposer node
 // - validates PRE-PREPARE message justification
 // - validates PRE-PREPARE message block proposal
+//
+//dd:span
 func (c *core) handlePreprepareMsg(preprepare *qbfttypes.Preprepare) error {
 	logger := c.currentLogger(true, preprepare)
 

@@ -199,6 +199,7 @@ type worker struct {
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
 }
 
+//dd:span
 func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus.Engine, eth Backend, mux *event.TypeMux, isLocalBlock func(*types.Block) bool, init bool) *worker {
 	worker := &worker{
 		config:             config,
@@ -250,6 +251,8 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 }
 
 // setEtherbase sets the etherbase used to initialize the block coinbase field.
+//
+//dd:span
 func (w *worker) setEtherbase(addr common.Address) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -257,6 +260,8 @@ func (w *worker) setEtherbase(addr common.Address) {
 }
 
 // setExtra sets the content used to initialize the block extra field.
+//
+//dd:span
 func (w *worker) setExtra(extra []byte) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -264,21 +269,29 @@ func (w *worker) setExtra(extra []byte) {
 }
 
 // setRecommitInterval updates the interval for miner sealing work recommitting.
+//
+//dd:span
 func (w *worker) setRecommitInterval(interval time.Duration) {
 	w.resubmitIntervalCh <- interval
 }
 
 // disablePreseal disables pre-sealing mining feature
+//
+//dd:span
 func (w *worker) disablePreseal() {
 	atomic.StoreUint32(&w.noempty, 1)
 }
 
 // enablePreseal enables pre-sealing mining feature
+//
+//dd:span
 func (w *worker) enablePreseal() {
 	atomic.StoreUint32(&w.noempty, 0)
 }
 
 // pending returns the pending state and corresponding block.
+//
+//dd:span
 func (w *worker) pending(psi types.PrivateStateIdentifier) (*types.Block, *state.StateDB, *state.StateDB) {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
@@ -295,6 +308,8 @@ func (w *worker) pending(psi types.PrivateStateIdentifier) (*types.Block, *state
 }
 
 // pendingBlock returns pending block.
+//
+//dd:span
 func (w *worker) pendingBlock() *types.Block {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
@@ -303,6 +318,8 @@ func (w *worker) pendingBlock() *types.Block {
 }
 
 // start sets the running status as 1 and triggers new work submitting.
+//
+//dd:span
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
@@ -314,6 +331,8 @@ func (w *worker) start() {
 }
 
 // stop sets the running status as 0.
+//
+//dd:span
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
 		istanbul.Stop()
@@ -328,6 +347,8 @@ func (w *worker) isRunning() bool {
 
 // close terminates all background threads maintained by the worker.
 // Note the worker does not support being closed multiple times.
+//
+//dd:span
 func (w *worker) close() {
 	if w.current != nil && w.current.state != nil {
 		w.current.state.StopPrefetcher()
@@ -337,6 +358,8 @@ func (w *worker) close() {
 }
 
 // recalcRecommit recalculates the resubmitting interval upon feedback.
+//
+//dd:span
 func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) time.Duration {
 	var (
 		prevF = float64(prev.Nanoseconds())
@@ -736,6 +759,8 @@ func (w *worker) resultLoop() {
 }
 
 // makeCurrent creates a new environment for the current cycle.
+//
+//dd:span
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit
@@ -776,6 +801,8 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 }
 
 // commitUncle adds the given block to uncle block set, returns error if failed to add.
+//
+//dd:span
 func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	hash := uncle.Hash()
 	if env.uncles.Contains(hash) {
@@ -796,6 +823,8 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 
 // updateSnapshot updates pending snapshot block and state.
 // Note this function assumes the current variable is thread safe.
+//
+//dd:span
 func (w *worker) updateSnapshot() {
 	w.snapshotMu.Lock()
 	defer w.snapshotMu.Unlock()
@@ -827,6 +856,7 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
+//dd:span
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	workerEnv := w.current
 	publicStateDB := workerEnv.state
@@ -870,6 +900,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	return logs, nil
 }
 
+//dd:span
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
 	// Short circuit if current is nil
 	if w.current == nil {
@@ -989,6 +1020,8 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 }
 
 // commitNewWork generates several new sealing tasks based on the parent block.
+//
+//dd:span
 func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
@@ -1113,6 +1146,8 @@ func (w *worker) commitNewWork(interrupt *int32, noempty bool, timestamp int64) 
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
+//
+//dd:span
 func (w *worker) commit(uncles []*types.Header, interval func(), update bool, start time.Time) error {
 	// Deep copy receipts here to avoid interaction between different tasks.
 	receipts := copyReceipts(w.current.receipts)
@@ -1176,6 +1211,8 @@ func totalFees(block *types.Block, receipts []*types.Receipt) *big.Float {
 // Quorum
 //
 // revertToPrivateStateSnapshots attempts to revert all private states to the provided snapshots
+//
+//dd:span
 func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateIdentifier]int) {
 	for psi, snapshot := range snapshots {
 		privateState, err := w.current.privateStateRepo.StatePSI(psi)
@@ -1195,6 +1232,8 @@ func (w *worker) revertToPrivateStateSnapshots(snapshots map[types.PrivateStateI
 // handleMPS returns the auxiliary receipt and the non-nil snapshots.
 //
 // Caller must check for error and reverts private states.
+//
+//dd:span
 func (w *worker) handleMPS(tx *types.Transaction, coinbase common.Address, applyOnPartyOnly bool) (mpsReceipt *types.Receipt, privateStateSnaphots map[types.PrivateStateIdentifier]int, err error) {
 	workerEnv := w.current
 	privateStateRepo := workerEnv.privateStateRepo

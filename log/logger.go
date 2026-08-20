@@ -1,11 +1,15 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-stack/stack"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 )
 
 const timeKey = "t"
@@ -126,16 +130,32 @@ type Logger interface {
 }
 
 type logger struct {
-	ctx []interface{}
-	h   *swapHandler
+	ctx        []interface{}
+	logContext context.Context
+	h          *swapHandler
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+	baseCtx := l.ctx
+
+	span, ok := tracer.SpanFromContext(l.logContext)
+	if ok && span.Context().TraceID() != 0 {
+		traceID := span.Context().TraceID()
+		spanID := strconv.FormatUint(span.Context().SpanID(), 10)
+
+		// Build a per-record copy so the trace/span tags for this single log
+		// line don't get appended onto l.ctx, which is the logger's persistent
+		// base context and lives for the logger's entire lifetime. Mutating it
+		// here would make every subsequent log call from this logger carry an
+		// ever-growing accumulation of every trace/span pair ever logged.
+		baseCtx = append(append([]interface{}{}, l.ctx...), ext.LogKeyTraceID, strconv.FormatUint(traceID, 10), ext.LogKeySpanID, spanID)
+	}
+
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
 		Msg:  msg,
-		Ctx:  newContext(l.ctx, ctx),
+		Ctx:  newContext(baseCtx, ctx),
 		Call: stack.Caller(skip),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
@@ -146,8 +166,8 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	})
 }
 
-func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler)}
+func (l *logger) New(ctxparams ...interface{}) Logger {
+	child := &logger{newContext(l.ctx, ctxparams), context.WithoutCancel(context.Background()), new(swapHandler)}
 	child.SetHandler(l.h)
 	return child
 }

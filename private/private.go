@@ -116,7 +116,11 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 	if err != nil {
 		return nil, err
 	}
-	if res.StatusCode != 200 {
+	upStatus := res.StatusCode
+	// Close the /upcheck body before reissuing on the same client; otherwise
+	// the connection is leaked on every node startup.
+	res.Body.Close()
+	if upStatus != 200 {
 		return nil, engine.ErrPrivateTxManagerNotReady
 	}
 	res, err = client.Get("/version")

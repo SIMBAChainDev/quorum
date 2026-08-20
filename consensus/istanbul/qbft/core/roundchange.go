@@ -94,6 +94,8 @@ func (c *core) broadcastRoundChange(round *big.Int) {
 // handleRoundChange is called when receiving a ROUND-CHANGE message from another validator
 // - accumulates ROUND-CHANGE messages until reaching quorum for a given round
 // - when quorum of ROUND-CHANGE messages is reached then
+//
+//dd:span
 func (c *core) handleRoundChange(roundChange *qbfttypes.RoundChange) error {
 	logger := c.currentLogger(true, roundChange)
 

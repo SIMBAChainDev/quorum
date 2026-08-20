@@ -68,7 +68,13 @@ func (p *SignedRoundChangePayload) EncodeRLP(w io.Writer) error {
 func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 	// Signed Payload
 	if _, err := stream.List(); err != nil {
-		log.Error("QBFT: Error List() Signed Payload", "err", err)
+		// rlp.EOL is the slice decoder's normal end-of-list probe: when
+		// decoding []*SignedRoundChangePayload (Preprepare.JustificationRoundChanges),
+		// the decoder calls this method one extra time past the last element
+		// to detect the end of the list. It is not a decode failure - don't log it.
+		if err != rlp.EOL {
+			log.Error("QBFT: Error List() Signed Payload", "err", err)
+		}
 		return err
 	}
 
@@ -131,7 +137,7 @@ func (p *SignedRoundChangePayload) DecodeRLP(stream *rlp.Stream) error {
 
 	p.code = RoundChangeCode
 
-	log.Info("QBFT: Correctly decoded SignedRoundChangePayload", "p", p)
+	log.Trace("QBFT: Correctly decoded SignedRoundChangePayload", "p", p)
 
 	return nil
 }
@@ -190,7 +196,11 @@ func (m *RoundChange) DecodeRLP(stream *rlp.Stream) error {
 
 	// Signed Payload
 	if _, err = stream.List(); err != nil {
-		log.Error("QBFT: Error List() Signed Payload", "err", err)
+		// Unlike SignedRoundChangePayload.DecodeRLP above, this is reached only
+		// via a top-level single-value decode nested inside the already-opened
+		// RoundChange Message list, so EOL here means genuinely malformed data,
+		// not the slice decoder's normal end-of-list probe.
+		log.Error("QBFT: Error List() RoundChange Signed Payload", "err", err)
 		return err
 	}
 

@@ -33,6 +33,8 @@ func (c *core) sendNextRoundChange() {
 }
 
 // sendRoundChange sends the ROUND CHANGE message with the given round
+//
+//dd:span
 func (c *core) sendRoundChange(round *big.Int) {
 	logger := c.logger.New("state", c.state)
 
@@ -67,6 +69,7 @@ func (c *core) sendRoundChange(round *big.Int) {
 	})
 }
 
+//dd:span
 func (c *core) handleRoundChange(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 

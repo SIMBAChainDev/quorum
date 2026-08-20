@@ -70,6 +70,8 @@ func (c *core) broadcastPrepare() {
 // - validates PREPARE message digest matches the current block proposal
 // - accumulates valid PREPARE message until reaching quorum
 // - when quorum is reached update states to "Prepared" and broadcast COMMIT
+//
+//dd:span
 func (c *core) handlePrepare(prepare *qbfttypes.Prepare) error {
 	logger := c.currentLogger(true, prepare).New()
 

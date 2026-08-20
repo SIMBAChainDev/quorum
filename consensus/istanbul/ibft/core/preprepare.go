@@ -25,6 +25,7 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
+//dd:span
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 	// If I'm the proposer and I have the same sequence with the proposal
@@ -45,6 +46,7 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 	}
 }
 
+//dd:span
 func (c *core) handlePreprepare(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 

@@ -116,6 +116,8 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 }
 
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
+//
+//dd:span
 func (c *core) startNewRound(round *big.Int) {
 	c.currentMutex.Lock()
 	defer c.currentMutex.Unlock()

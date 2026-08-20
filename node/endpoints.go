@@ -44,10 +44,12 @@ func StartHTTPEndpoint(endpoint string, timeouts rpc.HTTPTimeouts, handler http.
 	CheckTimeouts(&timeouts)
 	// Bundle and start the HTTP server
 	httpSrv := &http.Server{
-		Handler:      handler,
-		ReadTimeout:  timeouts.ReadTimeout,
-		WriteTimeout: timeouts.WriteTimeout,
-		IdleTimeout:  timeouts.IdleTimeout,
+		Handler:           handler,
+		ReadTimeout:       timeouts.ReadTimeout,
+		ReadHeaderTimeout: timeouts.ReadTimeout,
+		WriteTimeout:      timeouts.WriteTimeout,
+		IdleTimeout:       timeouts.IdleTimeout,
+		MaxHeaderBytes:    1 << 20,
 
 		// Ensure to Disable HTTP/2
 		// this configuration and customized tls.Config is to follow: https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go

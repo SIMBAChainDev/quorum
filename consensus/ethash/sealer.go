@@ -129,6 +129,8 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 
 // mine is the actual proof-of-work miner that searches for a nonce starting from
 // seed that results in correct final block difficulty.
+//
+//dd:span
 func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (

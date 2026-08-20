@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin/security"
@@ -138,6 +139,10 @@ func (h *httpServer) start(tlsConfigSource security.TLSConfigurationSource) erro
 
 	// Initialize the server.
 	h.server = &http.Server{Handler: h}
+	// Always bound header reads and size to blunt Slowloris/header-flood DoS,
+	// independent of the (optional) body/response timeouts below.
+	h.server.ReadHeaderTimeout = 60 * time.Second
+	h.server.MaxHeaderBytes = 1 << 20
 	if h.timeouts != (rpc.HTTPTimeouts{}) {
 		CheckTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout

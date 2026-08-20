@@ -637,7 +637,13 @@ func (pm *ProtocolManager) serveRaft() {
 	if err != nil {
 		fatalf("Failed to listen rafthttp (%v)", err)
 	}
-	err = (&http.Server{Handler: pm.transport.Handler()}).Serve(listener)
+	// Only bound header reads/size here: the raft transport keeps long-lived
+	// streaming connections, so Read/Write/Idle timeouts must NOT be set.
+	err = (&http.Server{
+		Handler:           pm.transport.Handler(),
+		ReadHeaderTimeout: 60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}).Serve(listener)
 	select {
 	case <-pm.httpstopc:
 	default:

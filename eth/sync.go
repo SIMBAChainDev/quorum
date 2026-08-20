@@ -238,6 +238,8 @@ func (cs *chainSyncer) loop() {
 }
 
 // nextSyncOp determines whether sync is required at this time.
+//
+//dd:span
 func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 	if cs.doneCh != nil {
 		return nil // Sync already running.
@@ -274,11 +276,13 @@ func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
 	return op
 }
 
+//dd:span
 func peerToSyncOp(mode downloader.SyncMode, p *eth.Peer) *chainSyncOp {
 	peerHead, peerTD := p.Head()
 	return &chainSyncOp{mode: mode, peer: p, td: peerTD, head: peerHead}
 }
 
+//dd:span
 func (cs *chainSyncer) modeAndLocalHead() (downloader.SyncMode, *big.Int) {
 	// If we're in fast sync mode, return that directly
 	if atomic.LoadUint32(&cs.handler.fastSync) == 1 {
@@ -302,12 +306,16 @@ func (cs *chainSyncer) modeAndLocalHead() (downloader.SyncMode, *big.Int) {
 }
 
 // startSync launches doSync in a new goroutine.
+//
+//dd:span
 func (cs *chainSyncer) startSync(op *chainSyncOp) {
 	cs.doneCh = make(chan error, 1)
 	go func() { cs.doneCh <- cs.handler.doSync(op) }()
 }
 
 // doSync synchronizes the local blockchain with a remote peer.
+//
+//dd:span
 func (h *handler) doSync(op *chainSyncOp) error {
 	if op.mode == downloader.FastSync || op.mode == downloader.SnapSync {
 		// Before launch the fast sync, we have to ensure user uses the same

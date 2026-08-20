@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -81,11 +82,36 @@ func (g *GoToolchain) Install(gobin string, args ...string) *exec.Cmd {
 	return tool
 }
 
+// useOrchestrion reports whether the build should be instrumented with Datadog
+// orchestrion, based on the USE_ORCHESTRION environment variable (accepts the
+// usual truthy values: 1, t, T, TRUE, true, ...).
+func useOrchestrion() bool {
+	on, _ := strconv.ParseBool(os.Getenv("USE_ORCHESTRION"))
+	return on
+}
+
 func (g *GoToolchain) goTool(command string, args ...string) *exec.Cmd {
 	if g.Root == "" {
 		g.Root = runtime.GOROOT()
 	}
-	tool := exec.Command(filepath.Join(g.Root, "bin", "go"), command)
+
+	// Instrument the build with Datadog orchestrion only when explicitly
+	// requested via the USE_ORCHESTRION environment variable. When requested,
+	// orchestrion MUST be present on PATH — otherwise fail loudly rather than
+	// silently producing an uninstrumented binary. When not requested, use the
+	// plain go tool from GOROOT, so a default `make`/`go run` build is never
+	// implicitly rewritten by whatever happens to be on PATH.
+	var tool *exec.Cmd
+	if useOrchestrion() {
+		orchestrion, err := exec.LookPath("orchestrion")
+		if err != nil {
+			log.Fatalf("USE_ORCHESTRION is set but the orchestrion binary was not found on PATH: %v", err)
+		}
+		log.Printf("building with Datadog orchestrion instrumentation: %s", orchestrion)
+		tool = exec.Command(orchestrion, "go", command)
+	} else {
+		tool = exec.Command(filepath.Join(g.Root, "bin", "go"), command)
+	}
 	tool.Args = append(tool.Args, args...)
 	tool.Env = append(tool.Env, "GOROOT="+g.Root)
 

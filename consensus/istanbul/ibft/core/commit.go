@@ -25,11 +25,13 @@ import (
 	ibfttypes "github.com/ethereum/go-ethereum/consensus/istanbul/ibft/types"
 )
 
+//dd:span
 func (c *core) sendCommit() {
 	sub := c.current.Subject()
 	c.broadcastCommit(sub)
 }
 
+//dd:span
 func (c *core) sendCommitForOldBlock(view *istanbul.View, digest common.Hash) {
 	sub := &istanbul.Subject{
 		View:   view,
@@ -38,6 +40,7 @@ func (c *core) sendCommitForOldBlock(view *istanbul.View, digest common.Hash) {
 	c.broadcastCommit(sub)
 }
 
+//dd:span
 func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	logger := c.logger.New("state", c.state)
 
@@ -52,6 +55,7 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 	})
 }
 
+//dd:span
 func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) error {
 	// Decode COMMIT message
 	var commit *istanbul.Subject
@@ -84,6 +88,8 @@ func (c *core) handleCommit(msg *ibfttypes.Message, src istanbul.Validator) erro
 }
 
 // verifyCommit verifies if the received COMMIT message is equivalent to our subject
+//
+//dd:span
 func (c *core) verifyCommit(commit *istanbul.Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -96,6 +102,7 @@ func (c *core) verifyCommit(commit *istanbul.Subject, src istanbul.Validator) er
 	return nil
 }
 
+//dd:span
 func (c *core) acceptCommit(msg *ibfttypes.Message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 

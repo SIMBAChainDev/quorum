@@ -92,6 +92,7 @@ type core struct {
 	consensusTimestamp time.Time
 }
 
+//dd:span
 func (c *core) finalizeMessage(msg *ibfttypes.Message) ([]byte, error) {
 	var err error
 	// Add sender address
@@ -127,6 +128,7 @@ func (c *core) finalizeMessage(msg *ibfttypes.Message) ([]byte, error) {
 	return payload, nil
 }
 
+//dd:span
 func (c *core) broadcast(msg *ibfttypes.Message) {
 	logger := c.logger.New("state", c.state)
 
@@ -143,6 +145,7 @@ func (c *core) broadcast(msg *ibfttypes.Message) {
 	}
 }
 
+//dd:span
 func (c *core) currentView() *istanbul.View {
 	return &istanbul.View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
@@ -162,6 +165,7 @@ func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
 	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
+//dd:span
 func (c *core) commit() {
 	c.setState(ibfttypes.StateCommitted)
 
@@ -182,6 +186,8 @@ func (c *core) commit() {
 }
 
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
+//
+//dd:span
 func (c *core) startNewRound(round *big.Int) {
 	var logger log.Logger
 	if c.current == nil {
@@ -271,6 +277,7 @@ func (c *core) startNewRound(round *big.Int) {
 	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
 }
 
+//dd:span
 func (c *core) catchUpRound(view *istanbul.View) {
 	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
 
@@ -288,6 +295,8 @@ func (c *core) catchUpRound(view *istanbul.View) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
+//
+//dd:span
 func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	// Lock only if both roundChange is true and it is locked
 	if roundChange && c.current != nil {

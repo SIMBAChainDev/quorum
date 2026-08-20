@@ -63,6 +63,8 @@ func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, plugi
 }
 
 // metadata.Command must be populated correctly here
+//
+//dd:span
 func (bp *basePlugin) load() error {
 	// Get plugin distribution path
 	pluginDistFilePath, err := bp.pm.downloader.Download(bp.pluginDefinition)
@@ -112,6 +114,7 @@ func (bp *basePlugin) load() error {
 	return nil
 }
 
+//dd:span
 func (bp *basePlugin) Start() (err error) {
 	startTime := time.Now()
 	defer func(startTime time.Time) {
@@ -259,6 +262,11 @@ func (*logDelegate) IsWarn() bool {
 
 func (*logDelegate) IsError() bool {
 	return true
+}
+
+func (*logDelegate) GetLevel() hclog.Level {
+	// no need to implement that as go-plugin doesn't use this method.
+	return hclog.NoLevel
 }
 
 func (ld *logDelegate) With(args ...interface{}) hclog.Logger {

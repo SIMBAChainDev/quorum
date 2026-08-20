@@ -25,9 +25,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -2773,6 +2777,67 @@ type Async struct {
 	sem chan struct{}
 }
 
+// asyncCallbackAllowedHostsEnv optionally restricts async transaction callback
+// destinations to an allowlist of hosts (comma-separated, matched case-insensitively
+// against the URL host). When unset, any host is permitted except the link-local
+// range refused unconditionally by newAsyncCallbackClient.
+const asyncCallbackAllowedHostsEnv = "QUORUM_ASYNC_CALLBACK_ALLOWED_HOSTS"
+
+// validateCallbackURL enforces the scheme and, when configured, the host
+// allowlist for an async transaction callback URL.
+func validateCallbackURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid callback URL: %v", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("callback URL scheme %q not allowed", u.Scheme)
+	}
+	if u.Hostname() == "" {
+		return errors.New("callback URL has no host")
+	}
+	if allowlist := os.Getenv(asyncCallbackAllowedHostsEnv); allowlist != "" {
+		host := strings.ToLower(u.Hostname())
+		for _, allowed := range strings.Split(allowlist, ",") {
+			if strings.ToLower(strings.TrimSpace(allowed)) == host {
+				return nil
+			}
+		}
+		return fmt.Errorf("callback host %q not in %s allowlist", u.Hostname(), asyncCallbackAllowedHostsEnv)
+	}
+	return nil
+}
+
+// newAsyncCallbackClient builds an HTTP client for async transaction callbacks
+// that times out, does not follow redirects, and refuses to connect to
+// link-local addresses (e.g. the 169.254.169.254 cloud metadata endpoint). The
+// refusal is enforced in Dialer.Control against the actual dialed IP, so DNS
+// rebinding and redirect hops cannot bypass it. Non-link-local private hosts
+// (a co-located Tessera, an internal service) remain reachable by design; use
+// QUORUM_ASYNC_CALLBACK_ALLOWED_HOSTS to restrict further.
+func newAsyncCallbackClient() *http.Client {
+	dialer := &net.Dialer{
+		Timeout: 10 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			if ip := net.ParseIP(host); ip != nil && ip.IsLinkLocalUnicast() {
+				return fmt.Errorf("callback to link-local address %s refused", ip)
+			}
+			return nil
+		},
+	}
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: &http.Transport{DialContext: dialer.DialContext},
+	}
+}
+
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
 	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
 
@@ -2795,11 +2860,16 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 			log.Info("Error encoding callback JSON", "err", err.Error())
 			return
 		}
-		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
+		if err := validateCallbackURL(asyncArgs.CallbackUrl); err != nil {
+			log.Info("Rejected async callback URL", "err", err.Error())
+			return
+		}
+		resp, err := newAsyncCallbackClient().Post(asyncArgs.CallbackUrl, "application/json", buf)
 		if err != nil {
 			log.Info("Error sending callback", "err", err.Error())
 			return
 		}
+		resp.Body.Close()
 	}
 }
 

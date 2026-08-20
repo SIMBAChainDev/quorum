@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -60,8 +61,14 @@ func Setup(address string) {
 	m.Handle("/debug/metrics", ExpHandler(metrics.DefaultRegistry))
 	m.Handle("/debug/metrics/prometheus", prometheus.Handler(metrics.DefaultRegistry))
 	log.Info("Starting metrics server", "addr", fmt.Sprintf("http://%s/debug/metrics", address))
+	server := &http.Server{
+		Addr:              address,
+		Handler:           m,
+		ReadHeaderTimeout: 60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	go func() {
-		if err := http.ListenAndServe(address, m); err != nil {
+		if err := server.ListenAndServe(); err != nil {
 			log.Error("Failure in running metrics server", "err", err)
 		}
 	}()
