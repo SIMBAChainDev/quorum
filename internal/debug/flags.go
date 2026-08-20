@@ -19,10 +19,12 @@ package debug
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -252,9 +254,23 @@ func StartPProf(address string, withMetrics bool) {
 	if withMetrics {
 		exp.Exp(metrics.DefaultRegistry)
 	}
+	if host, _, err := net.SplitHostPort(address); err == nil {
+		if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
+			log.Warn("pprof server bound to a non-loopback address; it serves unauthenticated debug endpoints (pprof, expvar, metrics)", "addr", address)
+		}
+	}
 	log.Info("Starting pprof server", "addr", fmt.Sprintf("http://%s/debug/pprof", address))
+	// Note: only ReadHeaderTimeout is set. pprof profile/trace captures stream
+	// their response for the requested duration, so a WriteTimeout here would
+	// truncate them.
+	server := &http.Server{
+		Addr:              address,
+		Handler:           nil,
+		ReadHeaderTimeout: 60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
 	go func() {
-		if err := http.ListenAndServe(address, nil); err != nil {
+		if err := server.ListenAndServe(); err != nil {
 			log.Error("Failure in running pprof server", "err", err)
 		}
 	}()
