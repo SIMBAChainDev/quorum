@@ -29,12 +29,14 @@ jobs:
           REF=${{ github.ref }}
           echo ::set-output name=image_tag::$(echo $REF | sed 's/refs\/tags\/v//g')
           echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/')
-      - name: 'Build ARM image to Docker Hub'
+      - name: 'Log in to Docker Hub'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+      - name: 'Build and push multi-arch image to Docker Hub'
         id: build
         run: |
-          output_dir=${{ runner.temp }}/docker
-          mkdir -p $output_dir
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_ACCESS_TOKEN }}
           docker buildx build --push --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
   build-binary:
     name: 'Build binary for ${{ matrix.os }}'
@@ -96,44 +98,11 @@ jobs:
           path: ${{ env.WORKING_DIR }}/build/artifact
           name: ${{ steps.env.outputs.key }}
           if-no-files-found: error
-  deploy-cloudsmith:
-    name: 'Deploy binary to Cloudsmith for ${{ matrix.goarch }}'
-    needs:
-      - build-binary
-    strategy:
-      fail-fast: false
-      matrix:
-        goarch: [ "linux_amd64", "darwin_arm64" ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Prepare environment'
-        id: env
-        run: |
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-          echo "::set-output name=version::${GITHUB_REF##*/}"
-      - name: 'Download artifacts'
-        uses: actions/download-artifact@v2
-        with:
-          path: artifact
-      - name: 'Upload artifacts to Cloudsmith'
-        id: push
-        uses: cloudsmith-io/action@0ce83a3f1c773732df56cb025692c3fee5af9a41 # master as of 2026-08-20
-        with:
-          api-key: ${{ secrets.CLOUDSMITH_API_KEY }}
-          command: "push"
-          format: "raw"
-          owner: "consensys"
-          repo: "go-quorum"
-          file: "artifact/${{ matrix.goarch }}/geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
-          name: "geth_${{ steps.env.outputs.version }}_${{ matrix.goarch }}.tar.gz"
-          summary: "GoQuorum ${{ steps.env.outputs.version }} - binary distribution for ${{ matrix.goarch }}"
-          description: "See https://github.com/ConsenSys/quorum/"
-          version: "${{ steps.env.outputs.version }}"
   draft-release:
     if: always()
     name: 'Draft Github release'
     needs:
-      - deploy-cloudsmith
+      - build-binary
       - publish-docker
     runs-on: ubuntu-20.04
     steps:
@@ -148,20 +117,8 @@ jobs:
           last_version=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1  --max-count=1`)
           last_release_date=$(git log -1 --format=%cd --date=short $last_version)
           echo "Last version: $last_version on $last_release_date"
-          # pulling from git logs
-          curl -q -s -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/search/issues?q=repo:ConsenSys/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
-            >> $file
-          # pulling file hashes from Cloudsmith
-          echo "" >> $file
-          echo "| Filename | SHA256 Hash |" >> $file
-          echo "|:---------|:------------|" >> $file
-          curl --request GET \
-            --url "https://api.cloudsmith.io/v1/packages/consensys/go-quorum/?query=version:$current_version" \
-            --header 'Accept: application/json' \
-            --header 'X-Api-Key: ${{ secrets.CLOUDSMITH_API_KEY }}' \
-                    	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](\(.cdn_url))|`\(.checksum_sha256)`|"' -r \
-                    	>> $file
+          # commit log since last tag
+          git log --pretty=format:'* %s (%h)' "${last_version}..HEAD" >> $file
           content=$(cat $file)
           # escape newline
           content="${content//'%'/'%25'}"
@@ -185,7 +142,6 @@ jobs:
     name: 'Notify'
     needs:
       - build-binary
-      - deploy-cloudsmith
       - publish-docker
       - draft-release
     runs-on: ubuntu-20.04
