@@ -13,7 +13,7 @@ env:
 jobs:
   publish-docker:
     name: Publish Docker Images
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v3
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-20.04", "macos-latest" ]
+        os: [ "ubuntu-24.04" ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
@@ -61,22 +61,13 @@ jobs:
         with:
           path: ${{ env.WORKING_DIR }}
       - name: 'Build geth'
-        # For MacOS, We use gtar and run purge command to workaround issue
-        # https://github.com/actions/virtual-environments/issues/2619
         id: build
         working-directory: ${{ env.WORKING_DIR }}
         run: |-
           make geth
           mkdir -p build/artifact
           tar_file=build/artifact/geth_${{ steps.env.outputs.version }}_${{ steps.env.outputs.key }}.tar.gz
-
-          if [ "${{ matrix.os }}" == "macos-latest" ]; then
-            sudo /usr/sbin/purge
-            gtar cfvz ${tar_file} -C build/bin geth
-          else
-            tar cfvz ${tar_file} -C build/bin geth
-          fi
-
+          tar cfvz ${tar_file} -C build/bin geth
           echo "::set-output name=tar_file::${tar_file}"
           echo "::set-output name=checksum::$(shasum -a 256 build/bin/geth | awk '{print $1}')"
       - name: 'Verify tarball'
@@ -104,7 +95,7 @@ jobs:
     needs:
       - build-binary
       - publish-docker
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
@@ -144,7 +135,7 @@ jobs:
       - build-binary
       - publish-docker
       - draft-release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: 'Setup metadata'
         id: setup
