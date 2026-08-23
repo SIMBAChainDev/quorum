@@ -412,10 +412,13 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			if err != nil {
 				return nil, err
 			}
+			// Quorum - clone rather than mutate http.DefaultTransport, which is
+			// process-global and shared by every other consumer in this binary.
+			qlightTransport := http.DefaultTransport.(*http.Transport).Clone()
+			qlightTransport.TLSClientConfig = tlsConfig
 			customHttpClient := &http.Client{
-				Transport: http.DefaultTransport,
+				Transport: qlightTransport,
 			}
-			customHttpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
 			proxyClient, err = rpc.DialHTTPWithClient(eth.config.QuorumLightClient.ServerNodeRPC, customHttpClient)
 			if err != nil {
 				return nil, err
