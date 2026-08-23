@@ -14,6 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	iplugin "github.com/ethereum/go-ethereum/internal/plugin"
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin/initializer"
 	"github.com/hashicorp/go-hclog"
@@ -108,6 +109,8 @@ func (bp *basePlugin) load() error {
 		Cmd:              command,
 		AutoMTLS:         true,
 		Logger:           &logDelegate{bp.logger.New("from", "plugin")},
+		// Quorum - trace outbound plugin gRPC calls.
+		GRPCDialOptions: telemetry.WrapGRPCDialOptions(nil),
 	})
 
 	bp.pluginWorkspace = unPackDir
@@ -116,6 +119,11 @@ func (bp *basePlugin) load() error {
 
 //dd:span
 func (bp *basePlugin) Start() (err error) {
+	// Quorum - the //dd:span directive above only produces a span on the
+	// Datadog path; this restores parity on the OTLP one.
+	_, span := telemetry.StartSpan(context.Background(), "plugin.Start")
+	defer span.End()
+	// End-Quorum
 	startTime := time.Now()
 	defer func(startTime time.Time) {
 		if err == nil {

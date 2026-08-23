@@ -30,6 +30,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -138,7 +139,9 @@ func (h *httpServer) start(tlsConfigSource security.TLSConfigurationSource) erro
 	}
 
 	// Initialize the server.
-	h.server = &http.Server{Handler: h}
+	// Quorum - trace inbound HTTP: this is the single choke point for JSON-RPC,
+	// WebSocket upgrades, GraphQL and every registered handler.
+	h.server = &http.Server{Handler: telemetry.WrapHandler(h)}
 	// Always bound header reads and size to blunt Slowloris/header-flood DoS,
 	// independent of the (optional) body/response timeouts below.
 	h.server.ReadHeaderTimeout = 60 * time.Second

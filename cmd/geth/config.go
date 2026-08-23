@@ -33,7 +33,9 @@ import (
 	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
+	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
@@ -91,6 +93,7 @@ type gethConfig struct {
 	Node     node.Config
 	Ethstats ethstatsConfig
 	Metrics  metrics.Config
+	Tracing  telemetry.Config // Quorum
 }
 
 func loadConfig(file string, cfg *gethConfig) error {
@@ -131,6 +134,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		Eth:     ethconfig.Defaults,
 		Node:    defaultNodeConfig(),
 		Metrics: metrics.DefaultConfig,
+		Tracing: telemetry.DefaultConfig(), // Quorum
 	}
 
 	// Load config file.
@@ -138,6 +142,17 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 		if err := loadConfig(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
+		// Quorum - re-resolve tracing now the file has been read. debug.Setup
+		// already applied the flags alone (it is the only hook every command
+		// shares), so this pass exists purely to let the TOML [Tracing] section
+		// take effect. Skipped without a config file: the first pass was
+		// already complete.
+		debug.SetTracingConfigFromFlags(ctx, &cfg.Tracing)
+		telemetry.Init(cfg.Tracing)
+		// End Quorum
+	} else {
+		// Quorum - keep the dumped config honest about the flags in force.
+		debug.SetTracingConfigFromFlags(ctx, &cfg.Tracing)
 	}
 
 	// Apply flags.

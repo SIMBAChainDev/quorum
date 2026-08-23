@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private/engine"
 )
@@ -15,7 +16,8 @@ func CreateClient(cfg Config) (*engine.Client, error) {
 		log.Info("Connecting to private tx manager using IPC socket")
 		client = &engine.Client{
 			HttpClient: &http.Client{
-				Transport: unixTransport(cfg),
+				// Quorum - trace outbound private transaction manager calls.
+				Transport: telemetry.WrapTransport(unixTransport(cfg)),
 			},
 			BaseURL: "http+unix://c",
 		}
@@ -34,8 +36,9 @@ func CreateClient(cfg Config) (*engine.Client, error) {
 
 		client = &engine.Client{
 			HttpClient: &http.Client{
-				Timeout:   time.Duration(cfg.Timeout) * time.Second,
-				Transport: transport,
+				Timeout: time.Duration(cfg.Timeout) * time.Second,
+				// Quorum - trace outbound private transaction manager calls.
+				Transport: telemetry.WrapTransport(transport),
 			},
 			BaseURL: cfg.HttpUrl,
 		}

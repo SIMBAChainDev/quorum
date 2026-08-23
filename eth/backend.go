@@ -50,6 +50,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
@@ -417,7 +418,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 			qlightTransport := http.DefaultTransport.(*http.Transport).Clone()
 			qlightTransport.TLSClientConfig = tlsConfig
 			customHttpClient := &http.Client{
-				Transport: qlightTransport,
+				Transport: telemetry.WrapTransport(qlightTransport),
 			}
 			proxyClient, err = rpc.DialHTTPWithClient(eth.config.QuorumLightClient.ServerNodeRPC, customHttpClient)
 			if err != nil {

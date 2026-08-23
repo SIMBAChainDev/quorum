@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/plugin/security"
@@ -44,7 +45,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := h.Schema.Exec(r.Context(), params.Query, params.OperationName, params.Variables)
+	// Quorum - trace the GraphQL execution. The span name is fixed: the client
+	// supplies the operation name, so using it would make span cardinality
+	// unbounded.
+	execCtx, span := telemetry.StartSpan(r.Context(), "graphql.request")
+	defer span.End()
+	// End-Quorum
+	response := h.Schema.Exec(execCtx, params.Query, params.OperationName, params.Variables)
 	responseJSON, err := json.Marshal(response)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

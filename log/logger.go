@@ -7,9 +7,19 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DataDog/dd-trace-go/v2/ddtrace/ext"
+	ddtracer "github.com/DataDog/dd-trace-go/v2/ddtrace/tracer"
+	"github.com/ethereum/go-ethereum/internal/telemetry/provider"
 	"github.com/go-stack/stack"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"go.opentelemetry.io/otel/trace"
+)
+
+// Trace-correlation keys used on the OTLP path. The Datadog path uses
+// ext.LogKeyTraceID / ext.LogKeySpanID instead, which the Datadog log pipeline
+// requires verbatim.
+const (
+	otelTraceIDKey = "trace_id"
+	otelSpanIDKey  = "span_id"
 )
 
 const timeKey = "t"
@@ -138,17 +148,23 @@ type logger struct {
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	baseCtx := l.ctx
 
-	span, ok := tracer.SpanFromContext(l.logContext)
-	if ok && span.Context().TraceID() != 0 {
-		traceID := span.Context().TraceID()
-		spanID := strconv.FormatUint(span.Context().SpanID(), 10)
-
-		// Build a per-record copy so the trace/span tags for this single log
-		// line don't get appended onto l.ctx, which is the logger's persistent
-		// base context and lives for the logger's entire lifetime. Mutating it
-		// here would make every subsequent log call from this logger carry an
-		// ever-growing accumulation of every trace/span pair ever logged.
-		baseCtx = append(append([]interface{}{}, l.ctx...), ext.LogKeyTraceID, strconv.FormatUint(traceID, 10), ext.LogKeySpanID, spanID)
+	// Build a per-record copy so the trace/span tags for this single log line
+	// don't get appended onto l.ctx, which is the logger's persistent base
+	// context and lives for the logger's entire lifetime. Mutating it here
+	// would make every subsequent log call from this logger carry an
+	// ever-growing accumulation of every trace/span pair ever logged.
+	//
+	// Quorum - the key names and ID encodings differ per provider, so the branch
+	// has to follow the one selected at startup.
+	if provider.Current() == provider.OTLP {
+		if sc := trace.SpanContextFromContext(l.logContext); sc.IsValid() {
+			baseCtx = append(append([]interface{}{}, l.ctx...),
+				otelTraceIDKey, sc.TraceID().String(), otelSpanIDKey, sc.SpanID().String())
+		}
+	} else if span, ok := ddtracer.SpanFromContext(l.logContext); ok && span.Context().TraceID() != ddtracer.TraceIDZero {
+		baseCtx = append(append([]interface{}{}, l.ctx...),
+			ext.LogKeyTraceID, span.Context().TraceID(),
+			ext.LogKeySpanID, strconv.FormatUint(span.Context().SpanID(), 10))
 	}
 
 	l.h.Log(&Record{

@@ -299,6 +299,11 @@ func newWebsocketCodec(conn *websocket.Conn) ServerCodec {
 	return wc
 }
 
+// Quorum - marks calls read off this codec as WebSocket-transported, so tracing
+// gives them their own root span instead of parenting them to the long-finished
+// upgrade request.
+func (wc *websocketCodec) isWebsocketTransport() {}
+
 func (wc *websocketCodec) close() {
 	wc.jsonCodec.close()
 	wc.wg.Wait()

@@ -17,6 +17,7 @@
 package debug
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -24,8 +25,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/exp"
@@ -33,6 +36,10 @@ import (
 	"github.com/mattn/go-isatty"
 	"gopkg.in/urfave/cli.v1"
 )
+
+// tracingShutdownTimeout bounds the final span flush so a dead collector cannot
+// hang process exit.
+const tracingShutdownTimeout = 5 * time.Second
 
 var (
 	verbosityFlag = cli.IntFlag{
@@ -89,6 +96,27 @@ var (
 		Name:  "trace",
 		Usage: "Write execution trace to the given file",
 	}
+	// Quorum
+	tracingProviderFlag = cli.StringFlag{
+		Name:  "tracing.provider",
+		Usage: "Distributed tracing backend: datadog, otlp or none",
+		Value: string(telemetry.DefaultConfig().Provider),
+	}
+	tracingEndpointFlag = cli.StringFlag{
+		Name:  "tracing.endpoint",
+		Usage: "OTLP collector endpoint (host:port, or a URL); defaults to OTEL_EXPORTER_OTLP_ENDPOINT",
+	}
+	tracingSampleRatioFlag = cli.Float64Flag{
+		Name:  "tracing.sampleratio",
+		Usage: "Fraction of traces sampled when the caller expresses no preference",
+		Value: telemetry.DefaultSampleRatio,
+	}
+	tracingExcludeMethodsFlag = cli.StringFlag{
+		Name:  "tracing.excludemethods",
+		Usage: "Comma-separated JSON-RPC methods that are never traced",
+		Value: strings.Join(telemetry.DefaultExcludedMethods, ","),
+	}
+	// End-Quorum
 	// (Deprecated April 2020)
 	legacyPprofPortFlag = cli.IntFlag{
 		Name:  "pprofport",
@@ -138,6 +166,12 @@ var Flags = []cli.Flag{
 	blockprofilerateFlag,
 	cpuprofileFlag,
 	traceFlag,
+	// Quorum
+	tracingProviderFlag,
+	tracingEndpointFlag,
+	tracingSampleRatioFlag,
+	tracingExcludeMethodsFlag,
+	// End-Quorum
 }
 
 // This is the list of deprecated debugging flags.
@@ -201,6 +235,15 @@ func Setup(ctx *cli.Context) error {
 	glogger.BacktraceAt(backtrace)
 
 	log.Root().SetHandler(glogger)
+
+	// Quorum - select the tracing backend. Done here, after logging is wired
+	// up, so that a bad provider value produces a visible warning. Orchestrion
+	// has already started the Datadog tracer from an injected init(), so any
+	// non-Datadog provider has to stop it.
+	cfg := telemetry.DefaultConfig()
+	SetTracingConfigFromFlags(ctx, &cfg)
+	telemetry.Init(cfg)
+	// End-Quorum
 
 	// profiling, tracing
 	runtime.MemProfileRate = memprofilerateFlag.Value
@@ -276,9 +319,40 @@ func StartPProf(address string, withMetrics bool) {
 	}()
 }
 
+// Quorum
+//
+// SetTracingConfigFromFlags overwrites the fields of cfg for which a tracing
+// flag was explicitly set on the command line, leaving the rest alone. This is
+// what gives CLI flags precedence over the TOML [Tracing] section without
+// having the file silently lose to flag defaults.
+func SetTracingConfigFromFlags(ctx *cli.Context, cfg *telemetry.Config) {
+	if ctx.GlobalIsSet(tracingProviderFlag.Name) {
+		cfg.Provider = ctx.GlobalString(tracingProviderFlag.Name)
+	}
+	if ctx.GlobalIsSet(tracingEndpointFlag.Name) {
+		cfg.Endpoint = ctx.GlobalString(tracingEndpointFlag.Name)
+	}
+	if ctx.GlobalIsSet(tracingSampleRatioFlag.Name) {
+		cfg.SampleRatio = ctx.GlobalFloat64(tracingSampleRatioFlag.Name)
+	}
+	if ctx.GlobalIsSet(tracingExcludeMethodsFlag.Name) {
+		cfg.ExcludeMethods = strings.Split(ctx.GlobalString(tracingExcludeMethodsFlag.Name), ",")
+	}
+}
+
+// End-Quorum
+
 // Exit stops all running profiles, flushing their output to the
 // respective file.
 func Exit() {
 	Handler.StopCPUProfile()
 	Handler.StopGoTrace()
+	// Quorum - flush buffered spans. Safe when tracing was never initialised:
+	// clef reaches this without ever calling Setup.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), tracingShutdownTimeout)
+	defer cancel()
+	if err := telemetry.Shutdown(shutdownCtx); err != nil {
+		log.Warn("Failed to flush tracing pipeline", "err", err)
+	}
+	// End-Quorum
 }

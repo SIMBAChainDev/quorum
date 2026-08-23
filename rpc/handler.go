@@ -25,8 +25,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/internal/telemetry"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+// Quorum
+//
+// websocketTransport is implemented by connections whose RPC calls arrive over
+// a persistent WebSocket socket rather than a single HTTP request/response.
+type websocketTransport interface {
+	isWebsocketTransport()
+}
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that
 // handler is not safe for concurrent use. Message handling never blocks indefinitely
@@ -416,6 +425,15 @@ func (h *handler) handleSubscribe(cp *callProc, msg *jsonrpcMessage) *jsonrpcMes
 
 // runMethod runs the Go callback for an RPC method.
 func (h *handler) runMethod(ctx context.Context, msg *jsonrpcMessage, callb *callback, args []reflect.Value) *jsonrpcMessage {
+	//Quorum
+	//Per-method tracing span. This is the only seam that also covers IPC and
+	//in-process calls. WS-transported calls must not be parented to the inbound
+	//HTTP span, which ended at the upgrade handshake.
+	_, wsTransport := h.conn.(websocketTransport)
+	ctx, span := telemetry.SpanForRPCMethod(ctx, msg.Method, wsTransport)
+	defer span.End()
+	//End-Quorum
+
 	//Quorum
 	//Pass the request ID to the method as part of the context, in case the method needs it later
 	contextWithId := context.WithValue(ctx, "id", &msg.ID)

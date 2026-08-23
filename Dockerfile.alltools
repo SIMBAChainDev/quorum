@@ -24,8 +24,14 @@ RUN cd /go-ethereum && go mod download
 COPY . /go-ethereum
 RUN cd /go-ethereum && go run build/ci.go install -static
 # Fail the build if geth was not actually instrumented with Datadog dd-trace-go.
+# The build is always Orchestrion-woven, regardless of which provider is chosen
+# at runtime via --tracing.provider.
 RUN go tool nm /go-ethereum/build/bin/geth | grep -q 'dd-trace-go' \
     || (echo 'ERROR: geth binary is not instrumented with Datadog dd-trace-go' && exit 1)
+# Fail the build if the OpenTelemetry SDK was dropped, which would leave
+# --tracing.provider=otlp silently unable to export anything.
+RUN go tool nm /go-ethereum/build/bin/geth | grep -q 'go.opentelemetry.io/otel/sdk' \
+    || (echo 'ERROR: geth binary does not carry the OpenTelemetry SDK (OTLP tracing unavailable)' && exit 1)
 
 # Pull all binaries into a second stage deploy alpine container
 FROM alpine:3.20
