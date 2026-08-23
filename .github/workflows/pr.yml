@@ -17,7 +17,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: '0'
           submodules: false
@@ -42,7 +42,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: 'Prepare environment'
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Check out project files'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: 'Build docker image'
         id: build
         run: |
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: 'Checkout'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v4
         with:
