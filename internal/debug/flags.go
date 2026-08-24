@@ -116,6 +116,11 @@ var (
 		Usage: "Comma-separated JSON-RPC methods that are never traced",
 		Value: strings.Join(telemetry.DefaultExcludedMethods, ","),
 	}
+	tracingServiceNameFlag = cli.StringFlag{
+		Name:  "tracing.servicename",
+		Usage: "Value reported as the OpenTelemetry service.name resource attribute",
+		Value: telemetry.DefaultConfig().ServiceName,
+	}
 	// End-Quorum
 	// (Deprecated April 2020)
 	legacyPprofPortFlag = cli.IntFlag{
@@ -171,6 +176,7 @@ var Flags = []cli.Flag{
 	tracingEndpointFlag,
 	tracingSampleRatioFlag,
 	tracingExcludeMethodsFlag,
+	tracingServiceNameFlag,
 	// End-Quorum
 }
 
@@ -337,6 +343,9 @@ func SetTracingConfigFromFlags(ctx *cli.Context, cfg *telemetry.Config) {
 	}
 	if ctx.GlobalIsSet(tracingExcludeMethodsFlag.Name) {
 		cfg.ExcludeMethods = strings.Split(ctx.GlobalString(tracingExcludeMethodsFlag.Name), ",")
+	}
+	if ctx.GlobalIsSet(tracingServiceNameFlag.Name) {
+		cfg.ServiceName = ctx.GlobalString(tracingServiceNameFlag.Name)
 	}
 }
 
