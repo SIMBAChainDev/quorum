@@ -300,10 +300,17 @@ jobs:
           docker images
           docker ps -a
 
+  # Disabled: build/run-peeps.sh clones ConsenSys/PEEPS, whose Gradle build
+  # needs the com.jfrog.bintray plugin -- Bintray/JCenter shut down in 2021,
+  # so that dependency can no longer resolve. Not a regression from this
+  # repo's CI changes: the upstream PEEPS project itself is deprecated
+  # ("Besu testing is done within Hive and Besu testing suites" per its
+  # README) and nobody maintains this Gradle config anymore.
   peeps-tests:
     name: Run PEEPS tests
     needs:
       - docker-build
+    if: false
     runs-on: ubuntu-24.04
     steps:
       - name: 'Checkout'
