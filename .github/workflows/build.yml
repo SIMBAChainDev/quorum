@@ -146,6 +146,11 @@ jobs:
           - '(basic && !nosupport && !mps && !(spam && !raw) && !eth-api-signed && !privacy-enhancements-disabled && !graphql && !async && !extension && !storage-root && !personal-api-signed) || networks/typical-hybrid::hybrid'
     runs-on: ubuntu-24.04
     steps:
+      - name: 'Use legacy iptables (ubuntu-24.04 nftables breaks Terraform-managed docker networks)'
+        run: |
+          sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+          sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+          sudo systemctl restart docker
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v4
         with:
@@ -259,6 +264,11 @@ jobs:
             privacy-marker-transactions: false # do not enable pmts as the test will do this on the necessary nodes
     runs-on: ubuntu-24.04
     steps:
+      - name: 'Use legacy iptables (ubuntu-24.04 nftables breaks Terraform-managed docker networks)'
+        run: |
+          sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+          sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+          sudo systemctl restart docker
       - name: 'Download workflow artifact - Docker image'
         uses: actions/download-artifact@v4
         with:
