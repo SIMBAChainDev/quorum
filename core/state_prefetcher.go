@@ -164,7 +164,7 @@ func (p *statePrefetcher) prefetchMpsTransaction(block *types.Block, tx *types.T
 				privateStateDb.IntermediateRoot(true)
 			}
 			p.pend.Done()
-		}(time.Now(), block, statedb, privateStateDb, tx, new(GasPool).AddGas(tx.Gas())) // TODO ricardolyn: which gas: block or Tx?
+		}(time.Now(), block, statedb.Copy(), privateStateDb, tx, new(GasPool).AddGas(tx.Gas())) // TODO ricardolyn: which gas: block or Tx?
 	}
 	p.pend.Wait()
 }
