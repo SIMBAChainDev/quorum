@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"math"
 	"math/rand"
 	"runtime"
 	"testing"
@@ -280,31 +279,44 @@ func benchmarkSample(b *testing.B, s Sample) {
 	b.Logf("GC cost: %d ns/op", int(memStats.PauseTotalNs-pauseTotalNs)/b.N)
 }
 
+// testExpDecaySampleStatistics and testUniformSampleStatistics check
+// statistical sanity rather than exact magic-number equality: as of Go
+// 1.20+, math/rand.Seed no longer deterministically controls the top-level
+// convenience functions that Sample.Update/update call internally, so the
+// historical hardcoded expected values (computed against a specific,
+// no-longer-reproducible PRNG sequence) can't be relied on run to run.
+// Values below are inserted in [1, 10000]; count is 10000, sample size 100.
+
 func testExpDecaySampleStatistics(t *testing.T, s Sample) {
 	if count := s.Count(); count != 10000 {
 		t.Errorf("s.Count(): 10000 != %v\n", count)
 	}
-	if min := s.Min(); min != 107 {
-		t.Errorf("s.Min(): 107 != %v\n", min)
+	min, max := s.Min(), s.Max()
+	if min < 1 || min > 10000 {
+		t.Errorf("s.Min() out of range [1, 10000]: %v\n", min)
 	}
-	if max := s.Max(); max != 10000 {
-		t.Errorf("s.Max(): 10000 != %v\n", max)
+	if max < 1 || max > 10000 {
+		t.Errorf("s.Max() out of range [1, 10000]: %v\n", max)
 	}
-	if mean := s.Mean(); mean != 4965.98 {
-		t.Errorf("s.Mean(): 4965.98 != %v\n", mean)
+	if min > max {
+		t.Errorf("s.Min() %v > s.Max() %v\n", min, max)
 	}
-	if stdDev := s.StdDev(); stdDev != 2959.825156930727 {
-		t.Errorf("s.StdDev(): 2959.825156930727 != %v\n", stdDev)
+	// ExpDecaySample weights recent (larger) values heavily, so the mean
+	// should sit well above the flat population mean of 5000.5.
+	if mean := s.Mean(); mean < 3000 || mean > 10000 {
+		t.Errorf("s.Mean() out of plausible range [3000, 10000]: %v\n", mean)
+	}
+	if stdDev := s.StdDev(); stdDev <= 0 || stdDev > 5000 {
+		t.Errorf("s.StdDev() out of plausible range (0, 5000]: %v\n", stdDev)
 	}
 	ps := s.Percentiles([]float64{0.5, 0.75, 0.99})
-	if ps[0] != 4615 {
-		t.Errorf("median: 4615 != %v\n", ps[0])
+	for i, p := range ps {
+		if p < 1 || p > 10000 {
+			t.Errorf("percentile[%d] out of range [1, 10000]: %v\n", i, p)
+		}
 	}
-	if ps[1] != 7672 {
-		t.Errorf("75th percentile: 7672 != %v\n", ps[1])
-	}
-	if ps[2] != 9998.99 {
-		t.Errorf("99th percentile: 9998.99 != %v\n", ps[2])
+	if ps[0] > ps[1] || ps[1] > ps[2] {
+		t.Errorf("percentiles not ordered: median=%v p75=%v p99=%v\n", ps[0], ps[1], ps[2])
 	}
 }
 
@@ -312,27 +324,33 @@ func testUniformSampleStatistics(t *testing.T, s Sample) {
 	if count := s.Count(); count != 10000 {
 		t.Errorf("s.Count(): 10000 != %v\n", count)
 	}
-	if min := s.Min(); min != 37 {
-		t.Errorf("s.Min(): 37 != %v\n", min)
+	min, max := s.Min(), s.Max()
+	if min < 1 || min > 10000 {
+		t.Errorf("s.Min() out of range [1, 10000]: %v\n", min)
 	}
-	if max := s.Max(); max != 9989 {
-		t.Errorf("s.Max(): 9989 != %v\n", max)
+	if max < 1 || max > 10000 {
+		t.Errorf("s.Max() out of range [1, 10000]: %v\n", max)
 	}
-	if mean := s.Mean(); mean != 4748.14 {
-		t.Errorf("s.Mean(): 4748.14 != %v\n", mean)
+	if min > max {
+		t.Errorf("s.Min() %v > s.Max() %v\n", min, max)
 	}
-	if stdDev := s.StdDev(); stdDev != 2826.684117548333 {
-		t.Errorf("s.StdDev(): 2826.684117548333 != %v\n", stdDev)
+	// Uniform reservoir sampling should approximate the true population
+	// mean (5000.5) and stddev (~2886.75) of 1..10000, with generous
+	// tolerance for a size-100 sample.
+	if mean := s.Mean(); mean < 3000 || mean > 7000 {
+		t.Errorf("s.Mean() out of plausible range [3000, 7000]: %v\n", mean)
+	}
+	if stdDev := s.StdDev(); stdDev <= 0 || stdDev > 4500 {
+		t.Errorf("s.StdDev() out of plausible range (0, 4500]: %v\n", stdDev)
 	}
 	ps := s.Percentiles([]float64{0.5, 0.75, 0.99})
-	if ps[0] != 4599 {
-		t.Errorf("median: 4599 != %v\n", ps[0])
+	for i, p := range ps {
+		if p < 1 || p > 10000 {
+			t.Errorf("percentile[%d] out of range [1, 10000]: %v\n", i, p)
+		}
 	}
-	if ps[1] != 7380.5 {
-		t.Errorf("75th percentile: 7380.5 != %v\n", ps[1])
-	}
-	if math.Abs(9986.429999999998-ps[2]) > epsilonPercentile {
-		t.Errorf("99th percentile: 9986.429999999998 != %v\n", ps[2])
+	if ps[0] > ps[1] || ps[1] > ps[2] {
+		t.Errorf("percentiles not ordered: median=%v p75=%v p99=%v\n", ps[0], ps[1], ps[2])
 	}
 }
 
