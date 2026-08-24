@@ -14,7 +14,7 @@ env:
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
   build:
-    name: 'Run tests and build on ${{ matrix.os }}'
+    name: 'Build all binaries on ${{ matrix.os }}'
     strategy:
       fail-fast: false
       matrix:
@@ -24,9 +24,40 @@ jobs:
         # must be sommething with Github Actions VM networking setup.
         # Event Ubuntu requires a workaround
         os: [ "ubuntu-24.04" ]
-    env:
-      QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Setup Go ${{ env.GO_VERSION }}'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: 'Check out project files'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          path: ${{ env.WORKING_DIR }}
+      - name: 'Apply workaround to fix networking in Linux'
+        if: runner.os == 'Linux'
+        run: |
+          # https://github.com/actions/virtual-environments/issues/798
+          sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+      - name: 'Build all binaries'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          make all
+  test:
+    name: 'Run tests (shard ${{ matrix.shard }})'
+    strategy:
+      fail-fast: false
+      matrix:
+        # `go run build/ci.go test` forces -p 1 (packages run one at a time)
+        # since some tests are concurrency-sensitive on shared CI hardware
+        # (ports, timing). Sharding across independent runners parallelises
+        # wall-clock time without touching that -p 1 safety margin.
+        shard: [0, 1, 2, 3, 4, 5]
+    env:
+      SHARD_COUNT: 6
+      QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
+    runs-on: ubuntu-24.04
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
         uses: actions/setup-go@v5
@@ -46,12 +77,20 @@ jobs:
         run: |
           go install github.com/DataDog/orchestrion@d99388bc684cfb427e297e2f82e8b52886dce69d
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - name: 'Run tests and build all'
+      - name: 'Run test shard'
         working-directory: ${{ env.WORKING_DIR }}
         env:
           USE_ORCHESTRION: "1"
         run: |
-          make test all
+          mapfile -t all_pkgs < <(go list ./... | sort)
+          shard_pkgs=()
+          for i in "${!all_pkgs[@]}"; do
+            if (( i % SHARD_COUNT == ${{ matrix.shard }} )); then
+              shard_pkgs+=("${all_pkgs[$i]}")
+            fi
+          done
+          echo "Shard ${{ matrix.shard }}/$SHARD_COUNT: ${#shard_pkgs[@]} packages"
+          go run build/ci.go test "${shard_pkgs[@]}"
   vulncheck:
     name: 'Go vulnerability scan'
     runs-on: ubuntu-24.04
@@ -349,6 +388,7 @@ jobs:
     name: Publish Docker Image
     needs:
       - build
+      - test
     runs-on: ubuntu-24.04
     steps:
       - name: 'Checkout'
