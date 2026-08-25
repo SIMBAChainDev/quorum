@@ -1,9 +1,10 @@
 name: Run Geth Upgrade
 on:
   workflow_dispatch:
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 4 * * *'
+  # schedule disabled for now
+  # schedule:
+  #   # * is a special character in YAML so you have to quote this string
+  #   - cron:  '0 4 * * *'
 
 env:
   GITHUB_USERNAME: ${{ secrets.QUORUM_BOT_GITHUB_USERNAME }}
