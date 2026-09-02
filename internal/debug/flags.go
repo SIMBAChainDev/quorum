@@ -100,7 +100,7 @@ var (
 	tracingProviderFlag = cli.StringFlag{
 		Name:  "tracing.provider",
 		Usage: "Distributed tracing backend: datadog, otlp or none",
-		Value: string(telemetry.DefaultConfig().Provider),
+		Value: telemetry.DefaultConfig().Provider,
 	}
 	tracingEndpointFlag = cli.StringFlag{
 		Name:  "tracing.endpoint",
