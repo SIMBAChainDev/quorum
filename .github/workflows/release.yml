@@ -34,7 +34,9 @@ jobs:
       - name: 'Build and push image to Docker Hub'
         id: build
         run: |
-          docker buildx build --push --platform linux/amd64 -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
+          docker buildx build --push --platform linux/amd64 \
+            --build-arg DD_GIT_COMMIT_SHA=${{ github.sha }} \
+            -t ${{ secrets.DOCKER_REPO }}:latest -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag }} -t ${{ secrets.DOCKER_REPO }}:${{ steps.extract.outputs.image_tag_minor_latest }} .
   build-binary:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
